@@ -1,27 +1,29 @@
 import os
 from flask import Flask, render_template, request, jsonify
 import requests
-from dotenv import load_dotenv
-
-# .envファイルからAPIキーを読み込む（安全対策）
-load_dotenv()
-API_KEY = os.getenv('DIFY_API_KEY')
 
 app = Flask(__name__)
 
-# 1. ユーザーがアクセスしてきたら、画面（HTML）を表示する
+# 1. トップページを表示
 @app.route('/')
 def home():
     return render_template('index.html')
 
-# 2. 画面から質問が来たら、ここで鍵をつけてDifyに問い合わせる
+# 2. チャットのやり取りをする場所
 @app.route('/chat', methods=['POST'])
 def chat():
+    # 画面から送られてきた「message」を受け取る
     user_message = request.json.get('message')
     
-    # Difyへの問い合わせ設定
+    # Renderに設定したキーを読み込む
+    api_key = os.environ.get('DIFY_API_KEY')
+    
+    if not api_key:
+        return jsonify({'answer': 'エラー: DIFY_API_KEYが設定されていません'}), 500
+
+    # Difyへ送る手紙の準備
     headers = {
-        'Authorization': f'Bearer {API_KEY}',
+        'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
     }
     payload = {
@@ -32,15 +34,24 @@ def chat():
     }
 
     try:
+        # Difyに送信！
         response = requests.post(
             'https://api.dify.ai/v1/chat-messages',
             headers=headers,
             json=payload
         )
         data = response.json()
-        return jsonify({'answer': data.get('answer', 'エラーが発生しました')})
+        
+        # 【重要】もし答えがなかったら、Difyからのエラーメッセージをそのまま表示する
+        answer = data.get('answer')
+        if not answer:
+            # エラーの正体を画面に出す
+            return jsonify({'answer': f"【Difyからのエラー】: {str(data)}" })
+            
+        return jsonify({'answer': answer})
+
     except Exception as e:
-        return jsonify({'answer': 'サーバーエラーが発生しました'}), 500
+        return jsonify({'answer': f"サーバー内部エラー: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5000)
+    app.run(debug=True, port=5000)
