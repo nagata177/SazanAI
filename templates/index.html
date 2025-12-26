@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サザンタクシー AIチャット</title>
+    <style>
+        /* 以前と同じデザイン設定 */
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #ffffff;
+        }
+        .logo-container { margin-bottom: 20px; text-align: center; }
+        .logo-container img { max-width: 280px; height: auto; }
+        .search-container { width: 100%; max-width: 580px; padding: 0 20px; box-sizing: border-box; }
+        .search-box {
+            display: flex; align-items: center; border: 1px solid #dfe1e5;
+            border-radius: 24px; padding: 6px 8px 6px 20px;
+            background: #fff; box-shadow: 0 1px 6px rgba(32,33,36,.28);
+        }
+        .search-icon { color: #9aa0a6; margin-right: 12px; display: flex; align-items: center; }
+        input[type="text"] { flex: 1; border: none; outline: none; font-size: 16px; height: 40px; }
+        .send-btn {
+            background-color: #1a73e8; color: white; border: none;
+            border-radius: 4px; padding: 0 24px; height: 36px;
+            margin-left: 10px; cursor: pointer; font-weight: bold;
+        }
+        #chat-history {
+            width: 100%; max-width: 580px; margin-top: 20px; padding: 0 20px;
+            box-sizing: border-box; display: flex; flex-direction: column;
+            gap: 15px; max-height: 40vh; overflow-y: auto;
+        }
+        .message { padding: 12px 18px; border-radius: 8px; line-height: 1.6; max-width: 90%; }
+        .bot-message { background-color: #f1f3f4; color: #202124; align-self: flex-start; }
+        .user-message { background-color: #e8f0fe; color: #1a73e8; align-self: flex-end; }
+        .loading { color: #70757a; font-size: 14px; margin-top: 15px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img src="/static/logo.png" alt="サザンタクシー">
+    </div>
+
+    <div class="search-container">
+        <div class="search-box">
+            <span class="search-icon">
+                <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="20px" width="20px" fill="#9aa0a6"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+            </span>
+            <input type="text" id="user-input" placeholder="質問を入力してください..." onkeydown="if(event.key==='Enter'){sendMessage()}">
+            <button class="send-btn" onclick="sendMessage()">送信</button>
+        </div>
+    </div>
+    <div id="loading" class="loading">検索中...</div>
+    <div id="chat-history"></div>
+
+    <script>
+        async function sendMessage() {
+            const inputField = document.getElementById('user-input');
+            const message = inputField.value.trim();
+            const loading = document.getElementById('loading');
+            
+            if (!message) return;
+
+            addMessage(message, 'user-message');
+            inputField.value = '';
+            loading.style.display = 'block';
+            
+            // レイアウト調整
+            document.body.style.justifyContent = 'flex-start';
+            document.body.style.paddingTop = '100px';
+
+            try {
+                // 直接Difyではなく、自分のPythonサーバー(/chat)に送る
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+                addMessage(data.answer.replace(/\n/g, '<br>'), 'bot-message');
+
+            } catch (error) {
+                addMessage('システムエラーが発生しました。', 'bot-message');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function addMessage(text, className) {
+            const chatHistory = document.getElementById('chat-history');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${className}`;
+            msgDiv.innerHTML = text;
+            chatHistory.insertBefore(msgDiv, chatHistory.firstChild);
+        }
+    </script>
+</body>
+</html>
